@@ -10,6 +10,14 @@ except ImportError:
 from .const import lenses, settings
 
 
+def get_camera():
+    context = gp.gp_context_new()
+    camera = gp.check_result(gp.gp_camera_new())
+    gp.check_result(gp.gp_camera_init(camera, context))
+
+    return camera
+
+
 def change_camera_setting(camera, setting_name, value):
     """Change a camera setting."""
     config = gp.check_result(gp.gp_camera_get_config(camera))
