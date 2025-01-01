@@ -1,13 +1,11 @@
 from pathlib import Path
-from scipy.optimize import curve_fit
-import numpy as np
 
 try:
     import gphoto2 as gp
 except ImportError:
     gp = None
 
-from .const import lenses, settings
+from .const import settings
 
 
 def get_camera():
@@ -43,42 +41,20 @@ def capture_image(camera, local_path):
     print("Image saved as:", local_path)
 
 
-def lens_model(x, a, b):
-    return a * np.log(x) + b
-
-
 def capture_focus_bracket(
     camera,
     local_path,
     focus_settings=settings.FOCUS_DISTANCE,
-    start_distance=0.3,
-    end_distance=0.4,
+    start_focus=1730,
+    end_focus=1500,
     steps=5,
-    lens=lenses.x35mm,
-    model=lens_model,
 ):
     base_filename = Path(local_path).name
-
-    for idx, rotation_value in enumerate(
-        get_rotation_values(start_distance, end_distance, steps, lens, model)
-    ):
-        bracket_filename = f"{base_filename}_{str(idx).zfill(3)}"
+    step_size = (start_focus - end_focus) / steps
+    for step in range(steps):
+        bracket_filename = f"{base_filename}_{str(step).zfill(3)}"
         bracket_filepath = Path(local_path).with_name(bracket_filename).as_posix()
-        change_camera_setting(camera, focus_settings, str(rotation_value))
+        change_camera_setting(
+            camera, focus_settings, str(int(end_focus + (step_size * step)))
+        )
         capture_image(camera, bracket_filepath)
-
-
-def get_mapping_function(lens, model=lens_model):
-    focus_distance, rotation = lens
-    params, _ = curve_fit(model, np.array(focus_distance), np.array(rotation))
-    a, b = params
-    return lambda x: model(x, a, b)
-
-
-def get_rotation_values(
-    start_distance=0.3, end_distance=0.4, steps=5, lens=lenses.x35mm, model=lens_model
-):
-    mapping_function = get_mapping_function(lens, model)
-    step_size = (end_distance - start_distance) / steps
-    step_values = [start_distance + x + step_size for x in range(steps)]
-    return [int(mapping_function(x)) for x in step_values]
