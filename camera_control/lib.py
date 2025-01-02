@@ -1,4 +1,6 @@
 from pathlib import Path
+import threading
+import subprocess
 
 try:
     import gphoto2 as gp
@@ -8,12 +10,29 @@ except ImportError:
 from .const import settings
 
 
+class CameraContext(object):
+    def __init__(self):
+        self.camera = get_camera()
+
+    def __enter__(self):
+        return self.camera
+
+    def __exit__(self, type, value, traceback):
+        self.camera.exit()
+
+
 def get_camera():
     context = gp.gp_context_new()
     camera = gp.check_result(gp.gp_camera_new())
     gp.check_result(gp.gp_camera_init(camera, context))
 
     return camera
+
+
+def get_camera_setting(camera, setting_name):
+    config = gp.check_result(gp.gp_camera_get_config(camera))
+    setting = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
+    return gp.check_result(gp.gp_widget_get_value(setting))
 
 
 def change_camera_setting(camera, setting_name, value):
@@ -58,3 +77,80 @@ def capture_focus_bracket(
             camera, focus_settings, str(int(end_focus + (step_size * step)))
         )
         capture_image(camera, bracket_filepath)
+
+
+def bulk_capture(
+    camera,
+    capture_root_dir="~/captures",
+    capture_name="untitled",
+    image_count=60,
+    start_number=1,
+    focus_bracket_settings=None,
+):
+    for idx in range(image_count):
+        image_id = idx + start_number
+        capture_path = Path(
+            capture_root_dir, capture_name, f"{capture_name}_{str(image_id).zfill(4)}"
+        ).as_posix()
+
+        if focus_bracket_settings is not None:
+            capture_focus_bracket(camera, capture_path, **focus_bracket_settings)
+        else:
+            capture_image(camera, capture_path)
+
+        yield capture_path
+
+
+def mount_usb_drive(device_path, mount_path):
+    if not Path(device_path).exists():
+        raise Exception("No Device to Mount")
+    if not Path(mount_path).exists():
+        Path(mount_path).mkdir(parents=True)
+    subprocess.run(["sudo", "mount", device_path, mount_path])
+
+
+def list_usb_drives():
+    try:
+        # Run lsblk to list all block devices
+        result = subprocess.run(
+            ["lsblk", "-o", "NAME,MODEL,TRAN,SIZE"], capture_output=True, text=True
+        )
+        drives = [x.strip() for x in result.stdout.splitlines()]
+
+        # Filter for USB devices
+        usb_drives = [
+            line for line in drives if "usb" in line.lower() and "part" in line.lower()
+        ]
+
+        print("Connected USB Drives:")
+        for drive in usb_drives:
+            print(drive)
+        return usb_drives
+    except Exception as e:
+        print("Error listing USB drives:", e)
+        return []
+
+
+class StoppableThread(threading.Thread):
+    def __init__(
+        self, group=None, target=None, name=None, args=..., kwargs=None, *, daemon=None
+    ):
+        super().__init__(group, target, name, args, kwargs, daemon=daemon)
+        self._stop_event = threading.Event()
+
+    def stop(self):
+        self._stop_event.set()
+
+    def stopped(self):
+        return self._stop_event.is_set()
+
+    def run(self):
+        try:
+            if self._target is not None:
+                for item in self._target(*self._args, **self._kwargs):
+                    if self.stopped():
+                        break
+        finally:
+            # Avoid a refcycle if the thread is running a function with
+            # an argument that has a member that points to the thread.
+            del self._target, self._args, self._kwargs
