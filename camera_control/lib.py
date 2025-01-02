@@ -65,17 +65,23 @@ def capture_focus_bracket(
     camera,
     local_path,
     focus_settings=settings.FOCUS_DISTANCE,
-    start_focus=1730,
-    end_focus=1500,
+    focus_start=1730,
+    focus_stop=1500,
     steps=5,
 ):
+    if int(focus_start) < int(focus_stop):
+        tmp_focus_start = focus_stop
+        tmp_focus_stop = focus_start
+        focus_start = tmp_focus_start
+        focus_stop = tmp_focus_stop
+
     base_filename = Path(local_path).name
-    step_size = (start_focus - end_focus) / steps
+    step_size = (focus_start - focus_stop) / steps
     for step in range(steps):
         bracket_filename = f"{base_filename}_{str(step).zfill(3)}"
         bracket_filepath = Path(local_path).with_name(bracket_filename).as_posix()
         change_camera_setting(
-            camera, focus_settings, str(int(end_focus + (step_size * step)))
+            camera, focus_settings, str(int(focus_stop + (step_size * step)))
         )
         capture_image(camera, bracket_filepath)
 

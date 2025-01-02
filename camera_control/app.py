@@ -109,10 +109,15 @@ def start_capture():
     image_count = request.form.get("image_count")
     capture_name = request.form.get("capture_name")
     focus_bracketing = "focus_bracketing" in request.form
+    focus_steps = request.form.get("focus_steps")
     focus_start = request.form.get("focus_start")
     focus_stop = request.form.get("focus_stop")
     if focus_bracketing:
-        focus_kwargs = {"focus_start": int(focus_start), "focus_stop": int(focus_stop)}
+        focus_kwargs = {
+            "focus_start": int(focus_start),
+            "focus_stop": int(focus_stop),
+            "focus_steps": int(focus_steps),
+        }
     else:
         focus_kwargs = None
     CURRENT_CAPTURE_THREAD = StoppableThread(
