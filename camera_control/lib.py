@@ -19,7 +19,11 @@ class CameraContext(object):
         return self.camera
 
     def __exit__(self, type, value, traceback):
-        self.camera.exit()
+        try:
+            self.camera.exit()
+        except gp.GPhoto2Error:
+            time.sleep(2)
+            self.camera.exit()
 
 
 def get_camera():
@@ -42,13 +46,14 @@ def change_camera_setting(camera, setting_name, value):
     setting = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
     gp.check_result(gp.gp_widget_set_value(setting, value))
     gp.check_result(gp.gp_camera_set_config(camera, config))
+    print(f"Setting: {setting_name} Set to: {value}")
 
 
 def capture_image(camera, local_path):
     """Capture an image and save it to a file."""
     # Trigger the capture
     file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE))
-    print("Image captured:", file_path)
+    print("Image captured:", file_path.name)
 
     # Download the image
     local_path = Path(local_path).with_suffix(Path(file_path.name).suffix).as_posix()
@@ -59,6 +64,7 @@ def capture_image(camera, local_path):
     )
     gp.check_result(gp.gp_file_save(camera_file, local_path))
     print("Image saved as:", local_path)
+    time.sleep(1.0)
 
 
 def capture_focus_bracket(
