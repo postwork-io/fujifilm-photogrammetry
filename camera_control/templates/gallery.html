@@ -19,7 +19,11 @@
             {% for image in images %}
             <div class="col-md-3 mb-4">
                 <div class="card">
-                    <img src="{{ url_for('data', path=image) }}" class="card-img-top" alt="{{ image }}">
+                    <a href="{{ url_for('data', path=capture_name + '/' + image) }}">
+
+                        <img src="{{ url_for('data', path=capture_name + '/.thumbnails/' + image) }}"
+                            class="card-img-top" alt="{{ image }}">
+                    </a>
                 </div>
             </div>
             {% endfor %}

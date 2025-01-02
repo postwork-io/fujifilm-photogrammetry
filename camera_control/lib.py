@@ -3,12 +3,15 @@ import time
 import threading
 import subprocess
 
+from PIL import Image
+
 try:
     import gphoto2 as gp
 except ImportError:
     gp = None
 
 from .const import settings
+from .settings import THUMBNAIL_SIZE
 
 
 class CameraContext(object):
@@ -49,7 +52,7 @@ def change_camera_setting(camera, setting_name, value):
     print(f"Setting: {setting_name} Set to: {value}")
 
 
-def capture_image(camera, local_path):
+def capture_image(camera, local_path, thumbnail=True):
     """Capture an image and save it to a file."""
     # Trigger the capture
     file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE))
@@ -64,7 +67,13 @@ def capture_image(camera, local_path):
     )
     gp.check_result(gp.gp_file_save(camera_file, local_path))
     print("Image saved as:", local_path)
-    time.sleep(1.0)
+    if thumbnail:
+        thumbnail_path = Path(local_path).parent / ".thumbnails" / Path(local_path).name
+        thumbnail_path.parent.mkdir(exist_ok=True, parents=True)
+        im = Image.open(local_path)
+        im.thumbnail(THUMBNAIL_SIZE)
+        im.save(thumbnail_path)
+        print("Thumbnail saved as:", thumbnail_path.as_posix())
 
 
 def capture_focus_bracket(
@@ -98,6 +107,7 @@ def bulk_capture(
     image_count=60,
     start_number=1,
     focus_bracket_settings=None,
+    callback=None,
 ):
     image_count = int(image_count)
     start_number = int(start_number)
@@ -116,6 +126,8 @@ def bulk_capture(
                 capture_image(camera, capture_path)
             percent_complete = float(idx + 1) / float(image_count)
             yield Path(capture_path).name, percent_complete
+            if callback:
+                callback(capture_path)
 
 
 def mock_bulk_capture(
@@ -124,6 +136,7 @@ def mock_bulk_capture(
     image_count=60,
     start_number=1,
     focus_bracket_settings=None,
+    callback=None,
 ):
     image_count = int(image_count)
     start_number = int(start_number)

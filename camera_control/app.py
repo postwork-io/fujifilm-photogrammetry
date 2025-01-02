@@ -79,12 +79,12 @@ def capture(capture_name="untitled"):
 @app.route("/<capture_name>/gallery")
 def gallery(capture_name="untitled"):
     images = [
-        f"{capture_name}/{x.name}"
+        x.name
         for x in Path(CAPTURE_ROOT, capture_name).iterdir()
         if x.suffix in [".jpg", ".JPG", ".jpeg", ".JPEG"]
     ]
 
-    return render_template("gallery.html", images=images)
+    return render_template("gallery.html", capture_name=capture_name, images=images)
 
 
 @app.route("/camera/get_current_focus")
