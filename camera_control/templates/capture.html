@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Capture Settings</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container my-4">
+        <h1 class="text-center mb-4">Image Capture Settings</h1>
+        <!-- Gallery Section -->
+        <div id="gallery-section" class="mt-4">
+            <a href="{{ capture_name + '/gallery' }}" class="btn btn-primary">View Gallery</a>
+        </div>
+
+        <!-- Settings Form -->
+        <form id="settings-form" action="/start_capture" method="POST">
+            <div class="mb-3">
+                <label for="starting_number" class="form-label">Starting Number</label>
+                <input type="number" id="starting_number" name="starting_number" class="form-control" required
+                    value="1">
+            </div>
+            <div class="mb-3">
+                <label for="image_count" class="form-label">Image Count</label>
+                <input type="number" id="image_count" name="image_count" class="form-control" required value="60">
+            </div>
+            <div class="form-check form-switch mb-3">
+                <input type="checkbox" id="focus_bracketing" name="focus_bracketing" class="form-check-input">
+                <label for="focus_bracketing" class="form-check-label">Enable Focus Bracketing</label>
+            </div>
+            <div id="focus-fields" class="mb-3" style="display: none;">
+                <div class="mb-3">
+                    <label for="focus_start" class="form-label">Focus Start</label>
+                    <input type="number" id="focus_start" name="focus_start" class="form-control" value="1730">
+                </div>
+                <div>
+                    <button id="get-focus-start" class="btn btn-primary">Set Focus From Camera</buttonb>
+                </div>
+                <div class="mb-3">
+                    <label for="focus_stop" class="form-label">Focus Stop</label>
+                    <input type="number" id="focus_stop" name="focus_stop" class="form-control" value="1500">
+                </div>
+                <div>
+                    <button id="get-focus-stop" class="btn btn-primary">Set Focus From Camera</buttonb>
+                </div>
+            </div>
+            <!-- Hidden Field -->
+            <input type="hidden" name="capture_name" id="capture_name" value="{{ capture_name }}">
+            <button type="submit" class="btn btn-primary" id="start_capture_button">Start Capture</button>
+        </form>
+
+        <!-- Progress Section -->
+        <div id="progress-section" class="mt-4" style="display: none;">
+            <h3>Capture Progress</h3>
+            <div class="progress mb-3">
+                <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;">0%</div>
+            </div>
+            <button id="cancel-button" class="btn btn-danger">Cancel Capture</button>
+        </div>
+    </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- JavaScript for Dynamic Form Behavior -->
+    <script>
+        const focusBracketingToggle = document.getElementById('focus_bracketing');
+        const focusFields = document.getElementById('focus-fields');
+        focusBracketingToggle.addEventListener('change', () => {
+            focusFields.style.display = focusBracketingToggle.checked ? 'block' : 'none';
+        });
+
+
+        const progressSection = document.getElementById('progress-section');
+        const progressBar = document.getElementById('progress-bar');
+        const cancelButton = document.getElementById('cancel-button');
+
+        const setFocusStartButton = document.getElementById('get-focus-start')
+        const setFocusStopButton = document.getElementById('get-focus-stop')
+        const focusStartInput = document.getElementById('focus_start')
+        const focusStopInput = document.getElementById('focus_stop')
+        document.getElementById('settings-form').addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default form submission
+            if (e.submitter.id == 'start_capture_button') {
+
+                progressSection.style.display = 'block'; // Show progress bar
+
+                // Start the task by submitting the form data
+                const formData = new FormData(e.target);
+                fetch('/start_capture', {
+                    method: 'POST',
+                    body: formData,
+                }).then(() => {
+                    pollProgress(); // Start polling for progress updates
+                });
+            }
+        });
+
+        function pollProgress() {
+            const interval = setInterval(() => {
+                fetch('/progress')
+                    .then(response => response.json())
+                    .then(data => {
+                        progressBar.style.width = `${data.progress}%`;
+                        progressBar.textContent = `${data.progress}%`;
+                        if (data.running) {
+                            progressSection.style.display = 'block'
+                        } else if (!data.running) {
+                            clearInterval(interval); // Stop polling
+                            progressBar.style.width = '0%';
+                            progressBar.textContent = 'Cancelled';
+                            progressSection.style.display = 'none'; // Hide progress section
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error fetching progress:', err);
+                        clearInterval(interval);
+                    });
+            }, 1000); // Poll every second
+        }
+
+        pollProgress();
+        cancelButton.addEventListener('click', () => {
+            fetch('/stop_capture', {
+                method: 'POST',
+            }).then(() => {
+                //alert('Capture cancelled.');
+                progressBar.style.width = '0%';
+                progressBar.textContent = 'Cancelled';
+                progressSection.style.display = 'none'; // Hide progress section
+            });
+        });
+        setFocusStartButton.addEventListener('click', () => {
+            fetch('/camera/get_current_focus', {
+                method: 'GET',
+            }).then(response => response.json())
+                .then(data => {
+                    focusStartInput.value = data.focus;
+                });
+        });
+        setFocusStopButton.addEventListener('click', () => {
+            fetch('/camera/get_current_focus', {
+                method: 'GET',
+            }).then(response => response.json())
+                .then(data => {
+                    focusStopInput.value = data.focus;
+                });
+        });
+    </script>
+</body>
+
+</html>

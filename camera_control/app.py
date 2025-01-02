@@ -1,4 +1,5 @@
 from pathlib import Path
+import random
 import shutil
 from flask import (
     Flask,
@@ -13,7 +14,13 @@ from flask import (
 from slugify import slugify
 from .settings import CAPTURE_ROOT
 from .const import settings
-from .lib import get_camera_setting, CameraContext
+from .lib import (
+    get_camera_setting,
+    CameraContext,
+    StoppableThread,
+    bulk_capture,
+    mock_bulk_capture,
+)
 
 app = Flask(__name__)
 CURRENT_CAPTURE_THREAD = None
@@ -65,15 +72,19 @@ def delete_capture():
 
 @app.route("/<capture_name>")
 def capture(capture_name="untitled"):
-    capture_path = Path(CAPTURE_ROOT, capture_name)
 
-    return "\n".join(
-        [
-            x.name
-            for x in capture_path.iterdir()
-            if x.suffix in [".jpg", ".jpeg", ".JPG", ".JPEG"]
-        ]
-    )
+    return render_template("capture.html", capture_name=capture_name)
+
+
+@app.route("/<capture_name>/gallery")
+def gallery(capture_name="untitled"):
+    images = [
+        f"{capture_name}/{x.name}"
+        for x in Path(CAPTURE_ROOT, capture_name).iterdir()
+        if x.suffix in [".jpg", ".JPG", ".jpeg", ".JPEG"]
+    ]
+
+    return render_template("gallery.html", images=images)
 
 
 @app.route("/camera/get_current_focus")
@@ -83,6 +94,64 @@ def camera_get_current_focus():
     return jsonify({"focus": focus})
 
 
-@app.route("/capture/status/<capture_name>")
-def capture_status(capture_name="untitled"):
-    pass
+@app.route("/mock_camera/get_current_focus")
+def mock_camera_get_current_focus():
+    focus = random.randint(0, 1730)
+    return jsonify({"focus": focus})
+
+
+@app.route("/start_capture", methods=["POST"])
+def start_capture():
+    global CURRENT_CAPTURE_THREAD
+    if CURRENT_CAPTURE_THREAD is not None:
+        return redirect("capture_status")
+    starting_number = request.form.get("starting_number")
+    image_count = request.form.get("image_count")
+    capture_name = request.form.get("capture_name")
+    focus_bracketing = "focus_bracketing" in request.form
+    focus_start = request.form.get("focus_start")
+    focus_stop = request.form.get("focus_stop")
+    if focus_bracketing:
+        focus_kwargs = {"focus_start": int(focus_start), "focus_stop": int(focus_stop)}
+    else:
+        focus_kwargs = None
+    CURRENT_CAPTURE_THREAD = StoppableThread(
+        target=bulk_capture,
+        kwargs={
+            "capture_root_dir": CAPTURE_ROOT,
+            "capture_name": capture_name,
+            "image_count": image_count,
+            "start_number": starting_number,
+            "focus_bracket_settings": focus_kwargs,
+        },
+    )
+
+    CURRENT_CAPTURE_THREAD.start()
+    return redirect("capture_status")
+
+
+@app.route("/stop_capture", methods=["POST"])
+def stop_capture():
+    global CURRENT_CAPTURE_THREAD
+    if CURRENT_CAPTURE_THREAD:
+        CURRENT_CAPTURE_THREAD.stop()
+        CURRENT_CAPTURE_THREAD.join()
+        CURRENT_CAPTURE_THREAD = None
+    return redirect("capture_status")
+
+
+@app.route("/progress")
+def capture_status():
+    global CURRENT_CAPTURE_THREAD
+
+    if CURRENT_CAPTURE_THREAD is None:
+        return jsonify({"message": "", "progress": 0.0, "running": False})
+    elif not CURRENT_CAPTURE_THREAD.is_alive():
+        CURRENT_CAPTURE_THREAD.join()
+        CURRENT_CAPTURE_THREAD = None
+        return jsonify({"message": "Complete", "progress": 100.0, "running": False})
+    else:
+        message, progress = CURRENT_CAPTURE_THREAD.get_status()
+        return jsonify(
+            {"message": message, "progress": round(progress * 100), "running": True}
+        )

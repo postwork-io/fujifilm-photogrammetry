@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 import threading
 import subprocess
 
@@ -80,25 +81,44 @@ def capture_focus_bracket(
 
 
 def bulk_capture(
-    camera,
     capture_root_dir="~/captures",
     capture_name="untitled",
     image_count=60,
     start_number=1,
     focus_bracket_settings=None,
 ):
+    image_count = int(image_count)
+    start_number = int(start_number)
+    with CameraContext() as camera:
+        for idx in range(image_count):
+            image_id = idx + start_number
+            capture_path = Path(
+                capture_root_dir,
+                capture_name,
+                f"{capture_name}_{str(image_id).zfill(4)}",
+            ).as_posix()
+
+            if focus_bracket_settings is not None:
+                capture_focus_bracket(camera, capture_path, **focus_bracket_settings)
+            else:
+                capture_image(camera, capture_path)
+            percent_complete = float(idx + 1) / float(image_count)
+            yield Path(capture_path).name, percent_complete
+
+
+def mock_bulk_capture(
+    capture_root_dir="~/captures",
+    capture_name="untitled",
+    image_count=60,
+    start_number=1,
+    focus_bracket_settings=None,
+):
+    image_count = int(image_count)
+    start_number = int(start_number)
     for idx in range(image_count):
-        image_id = idx + start_number
-        capture_path = Path(
-            capture_root_dir, capture_name, f"{capture_name}_{str(image_id).zfill(4)}"
-        ).as_posix()
-
-        if focus_bracket_settings is not None:
-            capture_focus_bracket(camera, capture_path, **focus_bracket_settings)
-        else:
-            capture_image(camera, capture_path)
-
-        yield capture_path
+        time.sleep(0.1)
+        percent_complete = float(idx + 1) / float(image_count)
+        yield f"{capture_name} {idx+start_number}", percent_complete
 
 
 def mount_usb_drive(device_path, mount_path):
@@ -133,10 +153,11 @@ def list_usb_drives():
 
 class StoppableThread(threading.Thread):
     def __init__(
-        self, group=None, target=None, name=None, args=..., kwargs=None, *, daemon=None
+        self, group=None, target=None, name=None, args=[], kwargs={}, *, daemon=None
     ):
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
         self._stop_event = threading.Event()
+        self._status = ("not started", 0.0)
 
     def stop(self):
         self._stop_event.set()
@@ -144,10 +165,14 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop_event.is_set()
 
+    def get_status(self):
+        return self._status
+
     def run(self):
         try:
             if self._target is not None:
-                for item in self._target(*self._args, **self._kwargs):
+                for status in self._target(*self._args, **self._kwargs):
+                    self._status = status
                     if self.stopped():
                         break
         finally:
