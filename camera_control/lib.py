@@ -99,6 +99,7 @@ def capture_focus_bracket(
             camera, focus_settings, str(int(focus_stop + (step_size * step)))
         )
         capture_image(camera, bracket_filepath)
+        yield ((step + 1) / focus_steps)
 
 
 def bulk_capture(
@@ -111,6 +112,7 @@ def bulk_capture(
 ):
     image_count = int(image_count)
     start_number = int(start_number)
+    main_step_size = 1.0 / float(image_count)
     with CameraContext() as camera:
         for idx in range(image_count):
             image_id = idx + start_number
@@ -121,11 +123,16 @@ def bulk_capture(
             ).as_posix()
 
             if focus_bracket_settings is not None:
-                capture_focus_bracket(camera, capture_path, **focus_bracket_settings)
+                for completion in capture_focus_bracket(
+                    camera, capture_path, **focus_bracket_settings
+                ):
+                    base_completion = float(idx) / float(image_count)
+                    percent_complete = base_completion + (main_step_size * completion)
+                    yield Path(capture_path).name, percent_complete
             else:
+                percent_complete = float(idx + 1) / float(image_count)
                 capture_image(camera, capture_path)
-            percent_complete = float(idx + 1) / float(image_count)
-            yield Path(capture_path).name, percent_complete
+                yield Path(capture_path).name, percent_complete
             if callback:
                 callback(capture_path)
 

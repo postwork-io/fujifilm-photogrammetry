@@ -21,6 +21,7 @@ from .lib import (
     bulk_capture,
     mock_bulk_capture,
 )
+from .stepper import advance_stepper
 
 app = Flask(__name__)
 CURRENT_CAPTURE_THREAD = None
@@ -107,6 +108,7 @@ def start_capture():
         return redirect("capture_status")
     starting_number = request.form.get("starting_number")
     image_count = request.form.get("image_count")
+    degree_per_image = request.form.get("degree_per_image")
     capture_name = request.form.get("capture_name")
     focus_bracketing = "focus_bracketing" in request.form
     focus_steps = request.form.get("focus_steps")
@@ -128,6 +130,7 @@ def start_capture():
             "image_count": image_count,
             "start_number": starting_number,
             "focus_bracket_settings": focus_kwargs,
+            "callback": lambda _: advance_stepper(degree_per_image),
         },
     )
 
