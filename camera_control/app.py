@@ -130,7 +130,7 @@ def start_capture():
             "image_count": image_count,
             "start_number": starting_number,
             "focus_bracket_settings": focus_kwargs,
-            "callback": lambda _: advance_stepper(degree_per_image),
+            "callback": lambda _: advance_stepper(float(degree_per_image)),
         },
     )
 
