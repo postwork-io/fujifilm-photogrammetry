@@ -50,7 +50,7 @@ def change_camera_setting(camera, setting_name, value):
     gp.check_result(gp.gp_widget_set_value(setting, value))
     gp.check_result(gp.gp_camera_set_config(camera, config))
     print(f"Setting: {setting_name} Set to: {value}")
-    time.sleep(1.0)
+    time.sleep(0.1)
 
 
 def capture_image(camera, local_path, thumbnail=True):
@@ -67,6 +67,8 @@ def capture_image(camera, local_path, thumbnail=True):
         )
     )
     gp.check_result(gp.gp_file_save(camera_file, local_path))
+    # remove the file because it is only stored in an image buffer on the xt2 and will lock I/O
+    gp.check_result(gp.gp_camera_file_delete(camera, file_path.folder, file_path.name))
     print("Image saved as:", local_path)
     if thumbnail:
         thumbnail_path = Path(local_path).parent / ".thumbnails" / Path(local_path).name
