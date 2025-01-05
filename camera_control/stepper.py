@@ -34,7 +34,7 @@ class Stepper:
 
     def __init__(
         self,
-        step_pin=13,
+        step_pin=23,
         max_speed=0.001,
         min_speed=0.05,
         total_steps=200,
