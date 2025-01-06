@@ -11,7 +11,8 @@ except ImportError:
     gp = None
 
 from .const import settings
-from .settings import THUMBNAIL_SIZE
+from .settings import THUMBNAIL_SIZE, STEPEPR_PIN, STEPS_PER_ROTATION
+from .stepper import Stepper
 
 
 class CameraContext(object):
@@ -106,6 +107,31 @@ def capture_focus_bracket(
         )
         capture_image(camera, bracket_filepath)
         yield ((step + 1) / focus_steps)
+
+
+def bulk_capture_turntable(
+    capture_root_dir="~/captures",
+    capture_name="untitled",
+    image_count=60,
+    start_number=1,
+    focus_bracket_settings=None,
+    degree_per_capture=6.0,
+):
+    with Stepper(
+        step_pin=STEPEPR_PIN, steps_per_rotation=STEPS_PER_ROTATION
+    ) as stepper:
+
+        def callback(*args, **kwargs):
+            stepper.advance_degrees(degree_per_capture)
+
+        yield from bulk_capture(
+            capture_root_dir=capture_root_dir,
+            capture_name=capture_name,
+            image_count=image_count,
+            start_number=start_number,
+            focus_bracket_settings=focus_bracket_settings,
+            callback=callback,
+        )
 
 
 def bulk_capture(

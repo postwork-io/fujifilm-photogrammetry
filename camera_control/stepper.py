@@ -34,11 +34,10 @@ class Stepper:
 
     def __init__(
         self,
-        step_pin=23,
+        step_pin=16,
         max_speed=0.001,
         min_speed=0.05,
-        total_steps=200,
-        step_res=0.25,
+        steps_per_rotation=800,
         ease_length=40,
         cool_down=1.0,
     ):
@@ -46,8 +45,7 @@ class Stepper:
         self.step_pin = step_pin  # Send pulses to the the coil
         self.max_speed = max_speed
         self.min_speed = min_speed
-        self.total_steps = total_steps
-        self.step_res = step_res
+        self.steps_per_rotation = steps_per_rotation
         self.ease_length = ease_length
         self.cool_down = cool_down
 
@@ -74,7 +72,7 @@ class Stepper:
 
     def advance_degrees(self, degrees=6.0):
         print(f"Advancing Stepper {degrees} degrees")
-        steps_per_degree = (self.total_steps / self.step_res) / 360.0
+        steps_per_degree = self.steps_per_rotation / 360.0
         steps = int(degrees * steps_per_degree)
 
         half_steps = steps / 2
