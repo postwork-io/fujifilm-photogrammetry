@@ -109,8 +109,23 @@
                 });
             }
         });
+        function insertAlert(message, type = 'success') {
+            // Create the alert div
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show text-center m-0`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                <strong>${String(type[0].toUpperCase() + String(type).slice(1) + String("!"))}</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
 
-        function pollProgress() {
+            // Insert the alert at the top of the body
+            document.body.prepend(alertDiv);
+        }
+
+        // Example: Show an alert when the button is clicked
+
+        function pollProgress(firstRun = false) {
             const interval = setInterval(() => {
                 fetch('/progress')
                     .then(response => response.json())
@@ -121,6 +136,12 @@
                             progressSection.style.display = 'block'
                         } else if (!data.running) {
                             clearInterval(interval); // Stop polling
+                            if (data.progress === 100) {
+                                console.log(data.progress)
+                                insertAlert('Capture Complete!', 'success');
+                            } else if (!firstRun) {
+                                insertAlert('Capture terminated early. If not expected check console.', 'warning');
+                            }
                             progressBar.style.width = '0%';
                             progressBar.textContent = 'Cancelled';
                             progressSection.style.display = 'none'; // Hide progress section
@@ -133,7 +154,7 @@
             }, 1000); // Poll every second
         }
 
-        pollProgress();
+        pollProgress(firstRun = true);
         cancelButton.addEventListener('click', () => {
             fetch('/stop_capture', {
                 method: 'POST',

@@ -14,7 +14,7 @@ from flask import (
 from slugify import slugify
 from .settings import CAPTURE_ROOT
 from .const import settings
-from .lib import (
+from .lib import (  # noqa f401
     get_camera_setting,
     CameraContext,
     StoppableThread,
@@ -29,7 +29,7 @@ CURRENT_CAPTURE_THREAD = None
 @app.route("/")
 def home():
     Path(CAPTURE_ROOT).mkdir(exist_ok=True, parents=True)
-    capture_paths = [x.name for x in Path(CAPTURE_ROOT).iterdir() if x.is_dir()]
+    capture_paths = sorted([x.name for x in Path(CAPTURE_ROOT).iterdir() if x.is_dir()])
     captures = []
     for path in capture_paths:
         captures.append(f"{path}")

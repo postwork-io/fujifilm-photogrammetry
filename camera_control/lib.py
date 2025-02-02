@@ -121,7 +121,7 @@ def bulk_capture_turntable(
         step_pin=STEPEPR_PIN, steps_per_rotation=STEPS_PER_ROTATION
     ) as stepper:
 
-        def callback(*args, **kwargs):
+        def callback(captured_images, *args, **kwargs):
             stepper.advance_degrees(degree_per_capture)
 
         yield from bulk_capture(
@@ -153,20 +153,22 @@ def bulk_capture(
                 capture_name,
                 f"{capture_name}_{str(image_id).zfill(4)}",
             ).as_posix()
-
+            captured_images = []
             if focus_bracket_settings is not None:
                 for completion in capture_focus_bracket(
                     camera, capture_path, **focus_bracket_settings
                 ):
                     base_completion = float(idx) / float(image_count)
                     percent_complete = base_completion + (main_step_size * completion)
+                    captured_images.append(capture_path)
                     yield Path(capture_path).name, percent_complete
             else:
                 percent_complete = float(idx + 1) / float(image_count)
                 capture_image(camera, capture_path)
+                captured_images.append(capture_path)
                 yield Path(capture_path).name, percent_complete
             if callback:
-                callback(capture_path)
+                callback(captured_images)
 
 
 def mock_bulk_capture(
