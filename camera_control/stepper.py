@@ -22,7 +22,7 @@ except ImportError:
         def output(self, pin: int, value: int):
             pass
 
-        def cleanup():
+        def cleanup(self):
             pass
 
     GPIO = mock_gpio()
@@ -38,7 +38,7 @@ class Stepper:
         max_speed=0.001,
         min_speed=0.05,
         steps_per_rotation=800,
-        ease_length=40,
+        ease_length=150,
         cool_down=1.0,
     ):
 
