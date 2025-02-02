@@ -92,7 +92,7 @@ def advance_stepper(degree):
         stepper.advance_degrees(degree)
 
 
-def exp_interp(a, b, x, power=2, flip=True):
+def exp_interp(a, b, x, power=1, flip=True):
     if x <= 0:
         if flip:
             return b
