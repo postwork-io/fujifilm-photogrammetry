@@ -38,7 +38,7 @@ class Stepper:
         max_speed=0.001,
         min_speed=0.05,
         steps_per_rotation=800,
-        ease_length=150,
+        ease_length=50,
         cool_down=1.0,
     ):
 
@@ -97,11 +97,13 @@ def exp_interp(a, b, x, power=2, flip=True):
         if flip:
             return b
         return a
-    elif x >= 1.0:
+    exp_x = math.pow(x, power)
+    if exp_x >= 1.0:
         if flip:
             return a
         return b
-    exp_x = math.pow(x, power)
+    offset = a
+    size = b - a
     if flip:
-        return ((1 - exp_x) * (b - a)) + a
-    return (exp_x * (b - a)) + a
+        return ((1 - exp_x) * size) + offset
+    return (exp_x * size) + offset
