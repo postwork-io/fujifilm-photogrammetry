@@ -35,8 +35,8 @@ class Stepper:
     def __init__(
         self,
         step_pin=16,
-        max_speed=0.001,
-        min_speed=0.05,
+        max_speed=0.005,
+        min_speed=0.01,
         steps_per_rotation=800,
         ease_length=50,
         cool_down=1.0,
