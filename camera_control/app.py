@@ -165,7 +165,8 @@ def capture_status():
         )
 
 
-@app.route("/move-turntable")
+@app.route("/move-turntable", methods=["POST"])
 def api_move_turntable():
     degrees = request.form.get("degrees", type=int)
     move_turntable(degrees)
+    return jsonify({"status": "complete"})
