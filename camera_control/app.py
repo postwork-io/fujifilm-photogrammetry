@@ -20,6 +20,7 @@ from .lib import (  # noqa f401
     StoppableThread,
     bulk_capture_turntable,
     mock_bulk_capture,
+    move_turntable,
 )
 
 app = Flask(__name__)
@@ -162,3 +163,9 @@ def capture_status():
         return jsonify(
             {"message": message, "progress": round(progress * 100), "running": True}
         )
+
+
+@app.route("/move-turntable")
+def api_move_turntable():
+    degrees = request.form.get("degrees", type=int)
+    move_turntable(degrees)

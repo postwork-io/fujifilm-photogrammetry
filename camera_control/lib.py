@@ -157,6 +157,13 @@ def bulk_capture_turntable(
         )
 
 
+def move_turntable(degrees=15.0):
+    with Stepper(
+        step_pin=STEPEPR_PIN, steps_per_rotation=STEPS_PER_ROTATION
+    ) as stepper:
+        stepper.advance_degrees(degrees)
+
+
 def bulk_capture(
     capture_root_dir="~/captures",
     capture_name="untitled",
