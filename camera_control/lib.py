@@ -1,4 +1,7 @@
 from pathlib import Path
+import json
+import mimetypes
+import requests
 import time
 import threading
 import subprocess
@@ -11,7 +14,7 @@ except ImportError:
     gp = None
 
 from .const import settings
-from .settings import THUMBNAIL_SIZE, STEPEPR_PIN, STEPS_PER_ROTATION
+from .settings import THUMBNAIL_SIZE, STEPEPR_PIN, STEPS_PER_ROTATION, POST_PROCESS_URL
 from .stepper import Stepper
 
 
@@ -28,6 +31,25 @@ class CameraContext(object):
         except gp.GPhoto2Error:
             time.sleep(2)
             self.camera.exit()
+
+
+def upload_files(url, job_name, file_paths=[]):
+    multiple_files = []
+
+    for file_path in file_paths:
+        mimetype = mimetypes.guess_type(file_path)[0]
+        multiple_files.append(
+            ("files", (Path(file_path).name, open(file_path, "rb"), mimetype))
+        )
+    data = {"job_name": job_name}
+    multiple_files.append(("data", ("data", json.dumps(data), "application/json")))
+    response = requests.post(url, files=multiple_files)
+
+    for file in multiple_files:
+        open_file = file[1][1]
+        if hasattr(open_file, "close"):
+            open_file.close()
+    return response
 
 
 def get_camera():
@@ -123,6 +145,7 @@ def bulk_capture_turntable(
 
         def callback(captured_images, *args, **kwargs):
             stepper.advance_degrees(degree_per_capture)
+            upload_files(POST_PROCESS_URL, capture_name, captured_images)
 
         yield from bulk_capture(
             capture_root_dir=capture_root_dir,

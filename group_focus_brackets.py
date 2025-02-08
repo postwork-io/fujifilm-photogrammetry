@@ -33,4 +33,4 @@ def move_sorted_photos(sorted_photos: Dict[str, List[Path]]):
 
 
 if __name__ == "__main__":
-    move_sorted_photos(sort_photos(r"C:\Users\nate\sandbox\images\full-test"))
+    move_sorted_photos(sort_photos(r"C:\Users\nate\sandbox\lily-001"))
