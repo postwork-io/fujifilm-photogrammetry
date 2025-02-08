@@ -127,7 +127,10 @@ def capture_focus_bracket(
         change_camera_setting(
             camera, focus_settings, str(int(focus_stop + (step_size * step)))
         )
-        capture_image(camera, bracket_filepath)
+        thumbnail = False
+        if bracket_filepath.lower().endswith("jpg"):
+            thumbnail = True
+        capture_image(camera, bracket_filepath, thumbnail=thumbnail)
         yield ((step + 1) / focus_steps)
 
 
