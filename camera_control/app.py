@@ -169,4 +169,4 @@ def capture_status():
 def api_move_turntable():
     degrees = request.form.get("degrees", type=int)
     move_turntable(degrees)
-    return jsonify({"status": "complete"})
+    return redirect("/")
