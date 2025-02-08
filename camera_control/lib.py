@@ -82,6 +82,10 @@ def capture_image(camera, local_path, thumbnail=True, delete_on_camera=True):
     file_path = gp.check_result(gp.gp_camera_capture(camera, gp.GP_CAPTURE_IMAGE))
     print("Image captured:", file_path.name)
 
+    # disable thumbnail if image is not valid for thumbnailing
+    if thumbnail and not file_path.name.lower().endswith("jpg"):
+        thumbnail = False
+
     # Download the image
     local_path = Path(local_path).with_suffix(Path(file_path.name).suffix).as_posix()
     camera_file = gp.check_result(
@@ -103,6 +107,7 @@ def capture_image(camera, local_path, thumbnail=True, delete_on_camera=True):
         im.thumbnail(THUMBNAIL_SIZE)
         im.save(thumbnail_path)
         print("Thumbnail saved as:", thumbnail_path.as_posix())
+    return local_path
 
 
 def capture_focus_bracket(
@@ -127,11 +132,9 @@ def capture_focus_bracket(
         change_camera_setting(
             camera, focus_settings, str(int(focus_stop + (step_size * step)))
         )
-        thumbnail = False
-        if bracket_filepath.lower().endswith("jpg"):
-            thumbnail = True
-        capture_image(camera, bracket_filepath, thumbnail=thumbnail)
-        yield ((step + 1) / focus_steps)
+
+        local_path = capture_image(camera, bracket_filepath)
+        yield ((step + 1) / focus_steps), local_path
 
 
 def bulk_capture_turntable(
@@ -188,17 +191,17 @@ def bulk_capture(
             ).as_posix()
             captured_images = []
             if focus_bracket_settings is not None:
-                for completion in capture_focus_bracket(
+                for completion, local_path in capture_focus_bracket(
                     camera, capture_path, **focus_bracket_settings
                 ):
                     base_completion = float(idx) / float(image_count)
                     percent_complete = base_completion + (main_step_size * completion)
-                    captured_images.append(capture_path)
+                    captured_images.append(local_path)
                     yield Path(capture_path).name, percent_complete
             else:
                 percent_complete = float(idx + 1) / float(image_count)
-                capture_image(camera, capture_path)
-                captured_images.append(capture_path)
+                local_path = capture_image(camera, capture_path)
+                captured_images.append(local_path)
                 yield Path(capture_path).name, percent_complete
             if callback:
                 callback(captured_images)
