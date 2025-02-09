@@ -276,7 +276,7 @@ def list_usb_drives():
 
 def get_worker_progress():
     global WORKER
-
+    print("getting worker status")
     if WORKER and WORKER.is_alive():
         if WORKER._queue.qsize() or WORKER.is_executing_job():
             return {"running": True, "pending_jobs": WORKER._queue.qsize()}
