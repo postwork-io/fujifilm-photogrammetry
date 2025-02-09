@@ -295,7 +295,7 @@ def process_function_background(func):
 
 
 @atexit.register
-def cleanup_background_worker(func):
+def cleanup_background_worker():
     global WORKER
 
     if WORKER:
