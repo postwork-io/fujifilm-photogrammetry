@@ -5,3 +5,4 @@ THUMBNAIL_SIZE = (300, 200)
 STEPEPR_PIN = int(os.getenv("STEPPER_PIN") or 16)
 STEPS_PER_ROTATION = int(os.getenv("STEPS_PER_ROTATION") or 800)
 POST_PROCESS_URL = os.getenv("POST_PROCESS_URL") or "http://192.168.1.183:5000/upload"
+SETTLE_TIME = float(os.getenv("SETTLE_TIME", 3))
