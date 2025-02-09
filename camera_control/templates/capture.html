@@ -65,6 +65,8 @@
         <!-- Progress Section -->
         <div id="progress-section" class="mt-4" style="display: none;">
             <h3>Capture Progress</h3>
+            <h4 id="backgound-uploads">Uploading - 0 Uploads Queued</h4>
+
             <div class="progress mb-3">
                 <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;">0%</div>
             </div>
@@ -87,6 +89,7 @@
 
         const progressSection = document.getElementById('progress-section');
         const progressBar = document.getElementById('progress-bar');
+        const backgroundUploads = document.getElementById('background-uploads');
         const cancelButton = document.getElementById('cancel-button');
 
         const setFocusStartButton = document.getElementById('get-focus-start')
@@ -132,9 +135,16 @@
                     .then(data => {
                         progressBar.style.width = `${data.progress}%`;
                         progressBar.textContent = `${data.progress}%`;
-                        if (data.running) {
+                        if (!data.uploading && !data.upload_jobs_in_queue) {
+                            backgroundUploads.style.display = 'none';
+                        } else {
+                            backgroundUploads.style.display = 'block';
+                            backgroundUploads.textContent = "Uploading - " + data.upload_jobs_in_queue.toString() + "Uploads Queued";
+
+                        };
+                        if (data.running || data.uploading) {
                             progressSection.style.display = 'block'
-                        } else if (!data.running) {
+                        } else if (!data.running && !data.uploading) {
                             clearInterval(interval); // Stop polling
                             if (data.progress === 100) {
                                 console.log(data.progress)

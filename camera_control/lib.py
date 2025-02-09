@@ -1,5 +1,6 @@
 from typing import Optional
 from pathlib import Path
+import atexit
 import json
 import mimetypes
 import requests
@@ -43,7 +44,7 @@ class CameraContext(object):
             self.camera.exit()
 
 
-def upload_files(url, job_name, file_paths=[]):
+def upload_files(url, job_name, file_paths=[], delete_on_success=True):
     multiple_files = []
 
     for file_path in file_paths:
@@ -60,6 +61,9 @@ def upload_files(url, job_name, file_paths=[]):
         open_file = file[1][1]
         if hasattr(open_file, "close"):
             open_file.close()
+    if response.status_code == 200 and delete_on_success:
+        for file_path in file_paths:
+            Path(file_path).unlink()
     return response
 
 
@@ -270,6 +274,16 @@ def list_usb_drives():
         return []
 
 
+def get_worker_progress():
+    global WORKER
+
+    if WORKER and WORKER.is_alive():
+        if WORKER._queue.qsize() or WORKER.is_executing_job():
+            return {"running": True, "pending_jobs": WORKER._queue.qsize()}
+
+    return {"running": False, "pending_jobs": 0}
+
+
 def process_function_background(func):
     global WORKER
 
@@ -280,6 +294,16 @@ def process_function_background(func):
     WORKER.add_to_queue(func)
 
 
+@atexit.register
+def cleanup_background_worker(func):
+    global WORKER
+
+    if WORKER:
+        WORKER.stop()
+        WORKER.join()
+        del WORKER
+
+
 class WorkerThread(threading.Thread):
     def __init__(
         self, group=None, target=None, name=None, args=[], kwargs=None, *, daemon=None
@@ -287,6 +311,7 @@ class WorkerThread(threading.Thread):
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
         self._stop_event = threading.Event()
         self._keep_alive = 10.0
+        self._executing_job = False
         if kwargs and kwargs.get("queue"):
             self._queue = kwargs["queue"]
         else:
@@ -301,24 +326,24 @@ class WorkerThread(threading.Thread):
     def stopped(self):
         return self._stop_event.is_set()
 
+    def is_executing_job(self):
+        return self._executing_job
+
     def run(self):
-        task_complete = True
-        task_time = time.time()
         while not self.stopped():
             try:
                 func = self._queue.get(timeout=1.0)
                 print(f"Running {func}")
+                self._executing_job = True
                 func()
-                task_complete = True
-            except queue.Empty:
-                task_complete = False
 
-            if task_complete:
-                task_time = time.time()
-            else:
-                if time.time() - task_time >= self._keep_alive:
-                    print(f"Cleaning up Thread: {self.name}")
-                    return
+            except queue.Empty:
+                pass
+            self._executing_job = False
+
+        # Avoid a refcycle if the thread is running a function with
+        # an argument that has a member that points to the thread.
+        del self._target, self._args, self._kwargs
 
 
 class StoppableThread(WorkerThread):

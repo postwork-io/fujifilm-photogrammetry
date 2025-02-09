@@ -21,6 +21,7 @@ from .lib import (  # noqa f401
     bulk_capture_turntable,
     mock_bulk_capture,
     move_turntable,
+    get_worker_progress,
 )
 
 app = Flask(__name__)
@@ -151,17 +152,39 @@ def stop_capture():
 @app.route("/progress")
 def capture_status():
     global CURRENT_CAPTURE_THREAD
-
+    worker_progress = get_worker_progress()
     if CURRENT_CAPTURE_THREAD is None:
-        return jsonify({"message": "", "progress": 0.0, "running": False})
+        return jsonify(
+            {
+                "message": "",
+                "progress": 0.0,
+                "running": False,
+                "uploading": worker_progress["running"],
+                "upload_jobs_in_queue": worker_progress["pending_jobs"],
+            }
+        )
     elif not CURRENT_CAPTURE_THREAD.is_alive():
         CURRENT_CAPTURE_THREAD.join()
         CURRENT_CAPTURE_THREAD = None
-        return jsonify({"message": "Complete", "progress": 100.0, "running": False})
+        return jsonify(
+            {
+                "message": "Complete",
+                "progress": 100.0,
+                "running": False,
+                "uploading": worker_progress["running"],
+                "upload_jobs_in_queue": worker_progress["pending_jobs"],
+            }
+        )
     else:
         message, progress = CURRENT_CAPTURE_THREAD.get_status()
         return jsonify(
-            {"message": message, "progress": round(progress * 100), "running": True}
+            {
+                "message": message,
+                "progress": round(progress * 100),
+                "running": True,
+                "uploading": worker_progress["running"],
+                "upload_jobs_in_queue": worker_progress["pending_jobs"],
+            }
         )
 
 
