@@ -1,3 +1,4 @@
+from typing import Optional
 from pathlib import Path
 import json
 import mimetypes
@@ -5,6 +6,7 @@ import requests
 import time
 import threading
 import subprocess
+import queue
 
 from PIL import Image
 
@@ -14,8 +16,16 @@ except ImportError:
     gp = None
 
 from .const import settings
-from .settings import THUMBNAIL_SIZE, STEPEPR_PIN, STEPS_PER_ROTATION, POST_PROCESS_URL
+from .settings import (
+    THUMBNAIL_SIZE,
+    STEPEPR_PIN,
+    STEPS_PER_ROTATION,
+    POST_PROCESS_URL,
+    SETTLE_TIME,
+)
 from .stepper import Stepper
+
+WORKER: Optional["WorkerThread"] = None
 
 
 class CameraContext(object):
@@ -146,12 +156,16 @@ def bulk_capture_turntable(
     degree_per_capture=6.0,
 ):
     with Stepper(
-        step_pin=STEPEPR_PIN, steps_per_rotation=STEPS_PER_ROTATION
+        step_pin=STEPEPR_PIN,
+        steps_per_rotation=STEPS_PER_ROTATION,
+        cool_down=SETTLE_TIME,
     ) as stepper:
 
         def callback(captured_images, *args, **kwargs):
             stepper.advance_degrees(degree_per_capture)
-            upload_files(POST_PROCESS_URL, capture_name, captured_images)
+            process_function_background(
+                lambda: upload_files(POST_PROCESS_URL, capture_name, captured_images)
+            )
 
         yield from bulk_capture(
             capture_root_dir=capture_root_dir,
@@ -165,7 +179,9 @@ def bulk_capture_turntable(
 
 def move_turntable(degrees=15.0):
     with Stepper(
-        step_pin=STEPEPR_PIN, steps_per_rotation=STEPS_PER_ROTATION
+        step_pin=STEPEPR_PIN,
+        steps_per_rotation=STEPS_PER_ROTATION,
+        cool_down=SETTLE_TIME,
     ) as stepper:
         stepper.advance_degrees(degrees)
 
@@ -253,19 +269,61 @@ def list_usb_drives():
         return []
 
 
-class StoppableThread(threading.Thread):
+def process_function_background(func):
+    global WORKER
+
+    if not WORKER or not WORKER.is_alive():
+
+        WORKER = WorkerThread()
+
+    WORKER.add_to_queue(func)
+
+
+class WorkerThread(threading.Thread):
     def __init__(
-        self, group=None, target=None, name=None, args=[], kwargs={}, *, daemon=None
+        self, group=None, target=None, name=None, args=[], kwargs=None, *, daemon=None
     ):
         super().__init__(group, target, name, args, kwargs, daemon=daemon)
         self._stop_event = threading.Event()
-        self._status = ("not started", 0.0)
+        self._keep_alive = 10.0
+        if kwargs and kwargs.get("queue"):
+            self._queue = kwargs["queue"]
+        else:
+            self._queue = queue.Queue()
+
+    def add_to_queue(self, item):
+        self._queue.put(item)
 
     def stop(self):
         self._stop_event.set()
 
     def stopped(self):
         return self._stop_event.is_set()
+
+    def run(self):
+        task_complete = True
+        task_time = time.time()
+        while not self.stopped():
+            try:
+                func = self._queue.get(timeout=1.0)
+                func()
+                task_complete = True
+            except queue.Empty:
+                task_complete = False
+
+            if task_complete:
+                task_time = time.time()
+            else:
+                if time.time() - task_time >= self._keep_alive:
+                    return
+
+
+class StoppableThread(WorkerThread):
+    def __init__(
+        self, group=None, target=None, name=None, args=[], kwargs=None, *, daemon=None
+    ):
+        super().__init__(group, target, name, args, kwargs, daemon=daemon)
+        self._status = ("not started", 0.0)
 
     def get_status(self):
         return self._status
