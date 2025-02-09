@@ -275,7 +275,7 @@ def process_function_background(func):
     if not WORKER or not WORKER.is_alive():
 
         WORKER = WorkerThread()
-
+        WORKER.start()
     WORKER.add_to_queue(func)
 
 
