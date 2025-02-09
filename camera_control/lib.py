@@ -53,6 +53,7 @@ def upload_files(url, job_name, file_paths=[]):
         )
     data = {"job_name": job_name}
     multiple_files.append(("data", ("data", json.dumps(data), "application/json")))
+    print("Uploading Files")
     response = requests.post(url, files=multiple_files)
 
     for file in multiple_files:
@@ -306,6 +307,7 @@ class WorkerThread(threading.Thread):
         while not self.stopped():
             try:
                 func = self._queue.get(timeout=1.0)
+                print(f"Running {func}")
                 func()
                 task_complete = True
             except queue.Empty:
@@ -315,6 +317,7 @@ class WorkerThread(threading.Thread):
                 task_time = time.time()
             else:
                 if time.time() - task_time >= self._keep_alive:
+                    print(f"Cleaning up Thread: {self.name}")
                     return
 
 
