@@ -35,17 +35,20 @@ class Board(object):
 
     def __init__(self, mode=GPIO.BOARD):
         self.mode = mode
-        GPIO.setmode(mode)
 
     def __new__(class_, *args, **kwargs):
         if not isinstance(class_._instance, class_):
             class_._instance = object.__new__(class_, *args, **kwargs)
+
+        if class_.active_counter == 0:
+            GPIO.setmode(class_._instance.mode)
         class_.active_counter += 1
         return class_._instance
 
     def cleanup(self):
         if self.active_counter <= 1:
             GPIO.cleanup()
+            self.active_counter = 0
         else:
             self.active_counter -= 1
 
