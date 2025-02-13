@@ -39,9 +39,9 @@ class Board(object):
     def __new__(class_, *args, **kwargs):
         if not isinstance(class_._instance, class_):
             class_._instance = object.__new__(class_, *args, **kwargs)
-
+        mode = kwargs.get("mode", GPIO.BOARD)
         if class_.active_counter == 0:
-            GPIO.setmode(class_._instance.mode)
+            GPIO.setmode(mode)
         class_.active_counter += 1
         return class_._instance
 
