@@ -1,5 +1,6 @@
 import time
 import math
+import atexit
 
 # import RPi.GPIO as GPIO
 try:
@@ -27,30 +28,8 @@ except ImportError:
 
     GPIO = mock_gpio()
 
-
-# Class has functions to control stepper motors and normal DC Motors
-class Board(object):
-    _instance = None
-    active_counter = 0
-
-    def __init__(self, mode=GPIO.BOARD):
-        self.mode = mode
-
-    def __new__(class_, *args, **kwargs):
-        if not isinstance(class_._instance, class_):
-            class_._instance = object.__new__(class_, *args, **kwargs)
-        mode = kwargs.get("mode", GPIO.BOARD)
-        if class_.active_counter == 0:
-            GPIO.setmode(mode)
-        class_.active_counter += 1
-        return class_._instance
-
-    def cleanup(self):
-        if self.active_counter <= 1:
-            GPIO.cleanup()
-            self.active_counter = 0
-        else:
-            self.active_counter -= 1
+GPIO.setmode(GPIO.BOARD)
+atexit.register(GPIO.cleanup)
 
 
 class Stepper:
@@ -91,8 +70,7 @@ class Stepper:
         self.cleanup()
 
     def setup(self):
-        if not self._board:
-            self._board = Board()
+
         GPIO.setup(self.step_pin, GPIO.OUT)
         GPIO.output(self.step_pin, GPIO.LOW)
 
@@ -101,8 +79,7 @@ class Stepper:
             GPIO.output(self.direction_pin, self.FORWARD)
 
     def cleanup(self):
-        if self._board:
-            self._board.cleanup()
+        pass
 
     def one_step(self, speed, direction=FORWARD):
         if self.direction_pin is not None:
