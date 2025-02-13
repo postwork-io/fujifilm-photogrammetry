@@ -189,6 +189,7 @@ def bulk_capture_turntable(
     start_number=1,
     focus_bracket_settings=None,
     degree_per_capture=6.0,
+    capture_specular=False,
 ):
     with Stepper(
         step_pin=TURNTABLE_STEPPER_PIN,
@@ -208,6 +209,7 @@ def bulk_capture_turntable(
             image_count=image_count,
             start_number=start_number,
             focus_bracket_settings=focus_bracket_settings,
+            capture_specular=capture_specular,
             callback=callback,
         )
 

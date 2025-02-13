@@ -115,6 +115,7 @@ def start_capture():
     focus_steps = request.form.get("focus_steps")
     focus_start = request.form.get("focus_start")
     focus_stop = request.form.get("focus_stop")
+    capture_specular = request.form.get("capture_specular")
     if focus_bracketing:
         focus_kwargs = {
             "focus_start": int(focus_start),
@@ -132,6 +133,7 @@ def start_capture():
             "start_number": starting_number,
             "focus_bracket_settings": focus_kwargs,
             "degree_per_capture": float(degree_per_capture),
+            "capture_specular": capture_specular,
         },
     )
 
