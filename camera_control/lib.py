@@ -261,7 +261,7 @@ def bulk_capture(
                         increment = 0.5 / float(image_count)
                         percent_complete = base_percent + (increment * (1 + i))
                         captured_images.append(image)
-                        yield percent_complete, image
+                        yield image, percent_complete
                     pass
                 else:
                     percent_complete = float(idx + 1) / float(image_count)

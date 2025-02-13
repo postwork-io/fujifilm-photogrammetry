@@ -179,7 +179,7 @@ def capture_status():
         )
     else:
         message, progress = CURRENT_CAPTURE_THREAD.get_status()
-        if not isinstance(progress, int):
+        if not isinstance(progress, (int, float)):
             print(f"Invalid Progress returned {progress}")
             progress = 0
         return jsonify(
