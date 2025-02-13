@@ -135,7 +135,6 @@
         function pollProgress(firstRun = false) {
             const interval = setInterval(() => {
                 fetch('/progress')
-                    .then(response => console.log(response))
                     .then(response => response.json())
                     .then(data => {
                         progressBar.style.width = `${data.progress}%`;
@@ -149,6 +148,7 @@
                         };
                         if (data.running || data.uploading) {
                             progressSection.style.display = 'block'
+                            firstRun = true;
                         } else if (!data.running && !data.uploading) {
                             clearInterval(interval); // Stop polling
                             if (data.progress === 100) {
