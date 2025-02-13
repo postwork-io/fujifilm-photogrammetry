@@ -246,7 +246,10 @@ def bulk_capture(
             captured_images = []
             if focus_bracket_settings is not None:
                 for completion, local_path in capture_focus_bracket(
-                    camera, capture_path, **focus_bracket_settings
+                    camera,
+                    capture_path,
+                    capture_specular=capture_specular,
+                    **focus_bracket_settings,
                 ):
                     base_completion = float(idx) / float(image_count)
                     percent_complete = base_completion + (main_step_size * completion)
