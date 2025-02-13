@@ -135,6 +135,7 @@
         function pollProgress(firstRun = false) {
             const interval = setInterval(() => {
                 fetch('/progress')
+                    .then(response => console.log(response))
                     .then(response => response.json())
                     .then(data => {
                         progressBar.style.width = `${data.progress}%`;
