@@ -4,7 +4,13 @@ import rawpy
 import lensfunpy
 import cv2
 import numpy as np
-from .logging import logger
+
+try:
+    from .logging_utils import logger
+except ImportError:
+    import logging
+
+    logger = logging.getLogger()
 
 
 def is_raw(file_path):
@@ -161,3 +167,7 @@ def convert_raw(files):
         else:
             converted_files.append(file)
     return converted_files
+
+
+if __name__ == "__main__":
+    convert_raw(["sandbox/source/DSCF9601.RAF", "sandbox/source/DSCF9602.RAF"])

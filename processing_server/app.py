@@ -7,12 +7,15 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from .worker import TASK_QUEUE
-from .logging import logger
+from .worker import WorkerPool
+from .logging_utils import logger
 
 app = Flask(__name__)
 
 app.config["UPLOAD_FOLDER"] = "/uploads"
+
+WORKER_POOL = WorkerPool()
+WORKER_POOL.start()
 
 
 @app.route("/upload", methods=["POST", "GET"])
@@ -31,7 +34,7 @@ def create_capture():
             file.save(file_path)
             local_paths.append(file_path.as_posix())
 
-    TASK_QUEUE.put(
+    WORKER_POOL.add_to_pool(
         {"job_name": job_name, "post_processes": post_processes, "files": local_paths}
     )
     return jsonify({})

@@ -1,32 +1,67 @@
 from typing import List
 from pathlib import Path
 import shutil
-from threading import Thread, Event
+from threading import Event
+import multiprocessing
 import queue
 import atexit
 
-from .logging import logger
+from .logging_utils import logger
 from .convert_raw import convert_raw
 from .focus_stack_process import focus_stack_process
+from .extract_specular_map import extract_specular
 
-PROCESSORS = {"convert_raw": convert_raw, "focus_stack": focus_stack_process}
-DEFAULT_POST_PROCESSES = ["convert_raw", "focus_stack"]
-TASK_QUEUE = queue.Queue()
-THREAD_WORKERS: List["Worker"] = []
+PROCESSORS = {
+    "convert_raw": convert_raw,
+    "focus_stack": focus_stack_process,
+    "extract_specular": extract_specular,
+}
+DEFAULT_POST_PROCESSES = ["convert_raw", "focus_stack", "extract_specular"]
 
 
-class Worker(Thread):
+class WorkerPool:
+
+    def __init__(self, worker_count=5):
+        self.worker_count = worker_count
+        self.workers = []
+        self._queue = multiprocessing.Queue()
+
+    def add_to_pool(self, data):
+        self._queue.put(data)
+
+    def start(self):
+        if len(self.workers):
+            raise Exception("Pool already has members")
+        for x in range(self.worker_count):
+            worker = Worker(queue=self._queue)
+            self.workers.append(worker)
+            worker.start()
+        atexit.register(self.stop)
+
+    def stop(self):
+        for worker in self.workers:
+            if worker.is_alive():
+                worker.stop()
+                worker.join()
+        for worker in self.workers:
+            del worker
+        self.workers = []
+
+
+class Worker(multiprocessing.Process):
     def __init__(
-        self, group=None, target=None, name=None, args=[], kwargs=None, *, daemon=None
+        self,
+        queue=None,
     ):
-        super().__init__(group, target, name, args, kwargs, daemon=daemon)
+        super().__init__()
         self._stopped = Event()
+        self._queue = queue
 
     def run(self):
         logger.info(f"Starting thread: {self.name}")
         while not self.stopped:
             try:
-                data = TASK_QUEUE.get(timeout=1)
+                data = self._queue.get(timeout=1)
                 files = data["files"]
                 post_process_names = data["post_processes"] or DEFAULT_POST_PROCESSES
                 job_name = data["job_name"]
@@ -46,6 +81,7 @@ class Worker(Thread):
 
             except queue.Empty:
                 pass
+        del self._target, self._args, self._kwargs
 
     def stop(self):
         self._stopped.set()
@@ -53,19 +89,3 @@ class Worker(Thread):
     @property
     def stopped(self):
         return self._stopped.is_set()
-
-
-for x in range(1):
-    thread = Worker()
-    THREAD_WORKERS.append(thread)
-    thread.start()
-
-
-@atexit.register
-def cleanup_threads():
-    logger.info("Cleaning Up Threads")
-    for thread in THREAD_WORKERS:
-        thread.stop()
-    for thread in THREAD_WORKERS:
-        if thread.is_alive():
-            thread.join()
