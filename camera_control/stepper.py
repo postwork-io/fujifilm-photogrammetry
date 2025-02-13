@@ -55,6 +55,12 @@ class Stepper:
 
     def __enter__(self):
         self.setup()
+        direction_enabled = "not enabled."
+        if self.direction_pin:
+            direction_enabled = f"enabled with pin {self.direction_pin}."
+        print(
+            f"Enabling Stepper on pin {self.step_pin}. Direction is {direction_enabled}"
+        )
         return self
 
     def __exit__(self, type, value, traceback):
