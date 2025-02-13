@@ -31,10 +31,13 @@ except ImportError:
 
 
 class Stepper:
+    FORWARD = 0
+    REVERSE = 1
 
     def __init__(
         self,
         step_pin=16,
+        direction_pin=None,
         max_speed=0.005,
         min_speed=0.01,
         steps_per_rotation=800,
@@ -48,6 +51,7 @@ class Stepper:
         self.steps_per_rotation = steps_per_rotation
         self.ease_length = ease_length
         self.cool_down = cool_down
+        self.direction_pin = direction_pin
 
     def __enter__(self):
         self.setup()
@@ -61,16 +65,21 @@ class Stepper:
         GPIO.setup(self.step_pin, GPIO.OUT)
         GPIO.output(self.step_pin, GPIO.LOW)
 
+        if self.direction_pin is not None:
+            GPIO.setup(self.direction_pin, GPIO.OUT)
+            GPIO.output(self.direction_pin, self.FORWARD)
+
     def cleanup(self):
         GPIO.cleanup()
 
-    def one_step(self, speed):
-
+    def one_step(self, speed, direction=FORWARD):
+        if self.direction_pin is not None:
+            GPIO.output(self.direction_pin, direction)
         GPIO.output(self.step_pin, GPIO.HIGH)
         time.sleep(speed)
         GPIO.output(self.step_pin, GPIO.LOW)
 
-    def advance_degrees(self, degrees=6.0):
+    def advance_degrees(self, degrees=6.0, direction=FORWARD):
         print(f"Advancing Stepper {degrees} degrees")
         steps_per_degree = self.steps_per_rotation / 360.0
         steps = int(degrees * steps_per_degree)
@@ -83,7 +92,7 @@ class Stepper:
             else:
                 x = (steps - step) / self.ease_length
                 step_time = exp_interp(self.max_speed, self.min_speed, x)
-            self.one_step(step_time)
+            self.one_step(step_time, direction=direction)
         time.sleep(self.cool_down)
 
 

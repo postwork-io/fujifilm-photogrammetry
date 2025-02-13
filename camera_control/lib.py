@@ -19,8 +19,11 @@ except ImportError:
 from .const import settings
 from .settings import (
     THUMBNAIL_SIZE,
-    STEPEPR_PIN,
-    STEPS_PER_ROTATION,
+    TURNTABLE_STEPPER_PIN,
+    POLARIZER_DIRECTION_PIN,
+    POLARIZER_STEPPER_PIN,
+    TURNTABLE_STEPS_PER_ROTATION,
+    POLARIZER_STEPS_PER_ROTATION,
     POST_PROCESS_URL,
     SETTLE_TIME,
 )
@@ -132,6 +135,7 @@ def capture_focus_bracket(
     focus_start=1730,
     focus_stop=1500,
     focus_steps=5,
+    capture_specular=False,
 ):
     if int(focus_start) < int(focus_stop):
         tmp_focus_start = focus_stop
@@ -147,9 +151,35 @@ def capture_focus_bracket(
         change_camera_setting(
             camera, focus_settings, str(int(focus_stop + (step_size * step)))
         )
+        if capture_specular:
+            for idx, image in enumerate(
+                capture_specular_maps(camera, bracket_filename)
+            ):
+                yield ((step + 1 + idx) / (focus_steps * 2)), image
+        else:
+            local_path = capture_image(camera, bracket_filepath)
+            yield ((step + 1) / focus_steps), local_path
 
-        local_path = capture_image(camera, bracket_filepath)
-        yield ((step + 1) / focus_steps), local_path
+
+def capture_specular_maps(camera, filepath):
+    diffuse = capture_image(camera, filepath)
+    with Stepper(
+        POLARIZER_STEPPER_PIN,
+        direction_pin=POLARIZER_DIRECTION_PIN,
+        cool_down=0,
+        steps_per_rotation=POLARIZER_STEPS_PER_ROTATION,
+    ) as polarizer_stepper:
+        polarizer_stepper.advance_degrees(
+            degrees=90, direction=polarizer_stepper.FORWARD
+        )
+        spec_filepath = Path(
+            Path(filepath).parent, Path(filepath).stem + "_spec" + Path(filepath).suffix
+        ).as_posix()
+        spec = capture_image(camera, spec_filepath)
+        polarizer_stepper.advance_degrees(
+            degrees=90, direction=polarizer_stepper.REVERSE
+        )
+    return [diffuse, spec]
 
 
 def bulk_capture_turntable(
@@ -161,8 +191,8 @@ def bulk_capture_turntable(
     degree_per_capture=6.0,
 ):
     with Stepper(
-        step_pin=STEPEPR_PIN,
-        steps_per_rotation=STEPS_PER_ROTATION,
+        step_pin=TURNTABLE_STEPPER_PIN,
+        steps_per_rotation=TURNTABLE_STEPS_PER_ROTATION,
         cool_down=SETTLE_TIME,
     ) as stepper:
 
@@ -184,8 +214,8 @@ def bulk_capture_turntable(
 
 def move_turntable(degrees=15.0):
     with Stepper(
-        step_pin=STEPEPR_PIN,
-        steps_per_rotation=STEPS_PER_ROTATION,
+        step_pin=TURNTABLE_STEPPER_PIN,
+        steps_per_rotation=TURNTABLE_STEPS_PER_ROTATION,
         cool_down=SETTLE_TIME,
     ) as stepper:
         stepper.advance_degrees(degrees)
@@ -197,6 +227,7 @@ def bulk_capture(
     image_count=60,
     start_number=1,
     focus_bracket_settings=None,
+    capture_specular=False,
     callback=None,
 ):
     image_count = int(image_count)
@@ -220,10 +251,21 @@ def bulk_capture(
                     captured_images.append(local_path)
                     yield Path(capture_path).name, percent_complete
             else:
-                percent_complete = float(idx + 1) / float(image_count)
-                local_path = capture_image(camera, capture_path)
-                captured_images.append(local_path)
-                yield Path(capture_path).name, percent_complete
+                if capture_specular:
+                    base_percent = float(idx) / float(image_count)
+                    for i, image in enumerate(
+                        capture_specular_maps(camera, capture_path)
+                    ):
+                        increment = 0.5 / float(image_count)
+                        percent_complete = base_percent + (increment * (1 + i))
+                        captured_images.append(image)
+                        yield percent_complete, image
+                    pass
+                else:
+                    percent_complete = float(idx + 1) / float(image_count)
+                    local_path = capture_image(camera, capture_path)
+                    captured_images.append(local_path)
+                    yield Path(capture_path).name, percent_complete
             if callback:
                 callback(captured_images)
 
@@ -276,7 +318,7 @@ def list_usb_drives():
 
 def get_worker_progress():
     global WORKER
-    print("getting worker status")
+
     if WORKER and WORKER.is_alive():
         if WORKER._queue.qsize() or WORKER.is_executing_job():
             return {"running": True, "pending_jobs": WORKER._queue.qsize()}

@@ -139,7 +139,7 @@
                             backgroundUploads.style.display = 'none';
                         } else {
                             backgroundUploads.style.display = 'block';
-                            backgroundUploads.textContent = "Uploading - " + data.upload_jobs_in_queue.toString() + "Uploads Queued";
+                            backgroundUploads.textContent = "Uploading - " + data.upload_jobs_in_queue.toString() + " Uploads Queued";
 
                         };
                         if (data.running || data.uploading) {
@@ -161,7 +161,7 @@
                         console.error('Error fetching progress:', err);
                         clearInterval(interval);
                     });
-            }, 1000); // Poll every second
+            }, 5000); // Poll every 5 seconds
         }
 
         pollProgress(firstRun = true);
