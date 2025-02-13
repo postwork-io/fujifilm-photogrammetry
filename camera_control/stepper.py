@@ -27,7 +27,27 @@ except ImportError:
 
     GPIO = mock_gpio()
 
+
 # Class has functions to control stepper motors and normal DC Motors
+class Board(object):
+    _instance = None
+    active_counter = 0
+
+    def __init__(self, mode=GPIO.BOARD):
+        self.mode = mode
+        GPIO.setmode(mode)
+
+    def __new__(class_, *args, **kwargs):
+        if not isinstance(class_._instance, class_):
+            class_._instance = object.__new__(class_, *args, **kwargs)
+        class_.active_counter += 1
+        return class_._instance
+
+    def cleanup(self):
+        if self.active_counter <= 1:
+            GPIO.cleanup()
+        else:
+            self.active_counter -= 1
 
 
 class Stepper:
@@ -52,6 +72,7 @@ class Stepper:
         self.ease_length = ease_length
         self.cool_down = cool_down
         self.direction_pin = direction_pin
+        self._board = None
 
     def __enter__(self):
         self.setup()
@@ -67,7 +88,8 @@ class Stepper:
         self.cleanup()
 
     def setup(self):
-        GPIO.setmode(GPIO.BOARD)
+        if not self._board:
+            self._board = Board()
         GPIO.setup(self.step_pin, GPIO.OUT)
         GPIO.output(self.step_pin, GPIO.LOW)
 
@@ -76,7 +98,8 @@ class Stepper:
             GPIO.output(self.direction_pin, self.FORWARD)
 
     def cleanup(self):
-        GPIO.cleanup()
+        if self._board:
+            self._board.cleanup()
 
     def one_step(self, speed, direction=FORWARD):
         if self.direction_pin is not None:
